@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>金門高粱 RWA 交易平台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <style>
+        .admin-section { display: none; }
+        .user-section { display: block; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+    <nav class="bg-blue-900 text-white p-4 shadow-lg">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold">🍶 金門高粱 RWA 平台</h1>
+            <button id="connectButton" class="bg-yellow-500 hover:bg-yellow-600 px-4 py-2 rounded-lg font-semibold transition">
+                連結錢包
+            </button>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-6">
+        <div class="bg-white rounded-xl p-4 shadow-sm mb-6 border-l-4 border-blue-500">
+            <p id="accountDisplay">錢包狀態：未連線</p>
+            <p id="roleDisplay" class="font-bold text-blue-700"></p>
+        </div>
+
+        <section id="adminPanel" class="admin-section bg-red-50 p-6 rounded-xl border border-red-200 mb-6">
+            <h2 class="text-2xl font-bold text-red-800 mb-4">🛡️ 酒廠管理控制台 (Admin)</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input id="mintTo" type="text" placeholder="接收者地址 (0x...)" class="p-2 border rounded">
+                <input id="mintYear" type="number" placeholder="入庫年份 (如 2024)" class="p-2 border rounded">
+                <input id="mintCategory" type="text" placeholder="酒類名稱 (如 陳年大曲)" class="p-2 border rounded">
+                <input id="mintLocation" type="text" placeholder="窖藏位置 (如 經武酒窖)" class="p-2 border rounded">
+                <button onclick="mintAsset()" class="bg-red-600 text-white p-2 rounded hover:bg-red-700">執行實物入庫 (Mint)</button>
+            </div>
+        </section>
+
+        <section class="bg-white p-6 rounded-xl shadow-md">
+            <h2 class="text-2xl font-bold mb-4">🔍 窖藏資產查詢</h2>
+            <div class="flex gap-2 mb-4">
+                <input id="searchId" type="number" placeholder="輸入 Token ID" class="flex-1 p-2 border rounded">
+                <button onclick="getLiquorInfo()" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">查詢</button>
+            </div>
+            <div id="resultArea" class="p-4 bg-gray-100 rounded hidden">
+                </div>
+        </section>
+    </main>
+
+    <script>
+        // 合約資訊 
+        const contractAddress = "0xd9145CCE52D386f254917e481eB44e9943F39138"; 
+        const abi = [
+            "function owner() view returns (address)",
+            "function liquorDetails(uint256) view returns (uint256 year, string category, string location)",
+            "function mintLiquorAsset(address to, uint256 _year, string _category, string _location) public",
+            "function balanceOf(address owner) view returns (uint256)"
+        ];
+
+        let provider, signer, contract;
+
+        async function init() {
+            if (window.ethereum) {
+                provider = new ethers.BrowserProvider(window.ethereum);
+                document.getElementById('connectButton').addEventListener('click', connectWallet);
+            } else {
+                alert("請安裝 MetaMask!");
+            }
+        }
+
+        async function connectWallet() {
+            const accounts = await provider.send("eth_requestAccounts", []);
+            signer = await provider.getSigner();
+            const userAddress = accounts[0];
+            
+            document.getElementById('accountDisplay').innerText = `錢包地址: ${userAddress}`;
+            document.getElementById('connectButton').innerText = "已連線";
+            
+            contract = new ethers.Contract(contractAddress, abi, signer);
+            checkRole(userAddress);
+        }
+
+        async function checkRole(address) {
+            try {
+                const contractOwner = await contract.owner();
+                const roleDisplay = document.getElementById('roleDisplay');
+                const adminPanel = document.getElementById('adminPanel');
+
+                if (address.toLowerCase() === contractOwner.toLowerCase()) {
+                    roleDisplay.innerText = "身分辨識：系統管理員 (酒廠中心)";
+                    adminPanel.style.display = "block";
+                } else {
+                    // 這裡示範 VIP 邏輯：持有超過 0 罈酒即為 VIP
+                    const balance = await contract.balanceOf(address);
+                    roleDisplay.innerText = balance > 0 ? "身分辨識：尊榮 VIP 藏家" : "身分辨識：一般訪客";
+                }
+            } catch (err) {
+                console.error("角色判定失敗", err);
+            }
+        }
+
+        async function mintAsset() {
+            try {
+                const to = document.getElementById('mintTo').value;
+                const year = document.getElementById('mintYear').value;
+                const cat = document.getElementById('mintCategory').value;
+                const loc = document.getElementById('mintLocation').value;
+
+                const tx = await contract.mintLiquorAsset(to, year, cat, loc);
+                alert("交易已發送，等待區塊確認...");
+                await tx.wait();
+                alert("入庫成功！");
+            } catch (err) {
+                alert("錯誤: " + err.reason);
+            }
+        }
+
+        async function getLiquorInfo() {
+            const id = document.getElementById('searchId').value;
+            const resArea = document.getElementById('resultArea');
+            try {
+                const info = await contract.liquorDetails(id);
+                resArea.classList.remove('hidden');
+                resArea.innerHTML = `
+                    <p>🍶 類別：${info.category}</p>
+                    <p>📅 年份：${info.year} 年</p>
+                    <p>📍 窖藏地點：${info.location}</p>
+                `;
+            } catch (err) {
+                alert("找不到此資產");
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
