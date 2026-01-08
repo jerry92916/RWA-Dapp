@@ -3,178 +3,159 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>金門高粱 RWA 窖藏平台</title>
+    <title>Web3 搶紅包 DApp</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
-    <style>
-        .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
-        .hidden { display: none; }
-    </style>
 </head>
-<body class="bg-slate-50 min-h-screen font-sans">
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
 
-    <nav class="bg-indigo-900 text-white p-4 shadow-lg">
-        <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold tracking-wider">🥃 KKL-RWA PLATFORM</h1>
-            <button id="connectBtn" class="bg-amber-500 hover:bg-amber-600 px-6 py-2 rounded-full font-bold transition-all shadow-md">
-                連結錢包
-            </button>
+    <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md border-t-8 border-red-500">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-2">🧧 區塊鏈紅包</h1>
+        <p class="text-center text-gray-500 mb-6 text-sm">合約地址: <span id="contractAddr" class="font-mono bg-gray-100 p-1">0x45753...101d9</span></p>
+
+        <div class="bg-red-50 p-4 rounded-lg mb-6 border border-red-100">
+            <div class="flex justify-between text-sm mb-2">
+                <span class="text-gray-600">連線狀態:</span>
+                <span id="status" class="font-bold text-red-600">未連線</span>
+            </div>
+            <div class="flex justify-between text-sm mb-2">
+                <span class="text-gray-600">帳戶地址:</span>
+                <span id="account" class="font-mono text-gray-800">n/a</span>
+            </div>
+            <div class="flex justify-between text-sm">
+                <span class="text-gray-600">目前餘額:</span>
+                <span id="balance" class="font-bold text-gray-800">-- ETH</span>
+            </div>
         </div>
-    </nav>
 
-    <main class="container mx-auto px-4 py-8">
-        <div class="glass-card rounded-2xl p-6 shadow-sm border border-slate-200 mb-6 flex flex-wrap items-center justify-between">
-            <div>
-                <p class="text-slate-500 text-sm">當前錢包地址</p>
-                <p id="userAccount" class="font-mono text-indigo-900 font-bold">尚未連接</p>
-            </div>
-            <div id="roleBadge" class="mt-2 md:mt-0 px-4 py-1 rounded-full text-sm font-bold bg-slate-200 text-slate-600">
-                訪客模式
-            </div>
+        <button id="connectBtn" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg transition duration-200 mb-3">
+            1. 連接 MetaMask
+        </button>
+        
+        <button id="claimBtn" disabled class="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-bold py-4 px-4 rounded-lg transition duration-200 shadow-lg uppercase tracking-wider">
+            2. 立即搶紅包！
+        </button>
+
+        <div id="logBox" class="mt-6 text-xs bg-gray-900 text-green-400 p-3 rounded font-mono h-32 overflow-y-auto">
+            > 系統準備就緒，請先連接錢包...
         </div>
-
-        <section id="adminPanel" class="hidden mb-8">
-            <div class="bg-white rounded-2xl p-8 border-2 border-red-100 shadow-xl">
-                <h2 class="text-2xl font-bold text-red-600 mb-4 border-b pb-2">🛡️ 管理者權限 (Owner Only)</h2>
-                <div class="grid md:grid-cols-2 gap-6">
-                    <div class="space-y-4">
-                        <h4 class="font-bold">1. 鑄造高粱酒權 (Mint NFT)</h4>
-                        <input id="mintTo" type="text" placeholder="接收者地址" class="w-full p-2 border rounded-lg">
-                        <input id="mintYear" type="number" placeholder="年份 (如 2024)" class="w-full p-2 border rounded-lg">
-                        <button onclick="mintToken()" class="w-full bg-red-500 text-white py-2 rounded-lg hover:bg-red-600 transition">確認上鏈</button>
-                    </div>
-                    <div class="space-y-4 border-l pl-6">
-                        <h4 class="font-bold">2. 權限設定</h4>
-                        <input id="vipAddress" type="text" placeholder="目標地址" class="w-full p-2 border rounded-lg">
-                        <div class="flex gap-2">
-                            <button onclick="setVIP(true)" class="flex-1 bg-amber-500 text-white py-2 rounded-lg">設為 VIP</button>
-                            <button onclick="setVIP(false)" class="flex-1 bg-slate-400 text-white py-2 rounded-lg">取消 VIP</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="vipPanel" class="hidden mb-8">
-            <div class="bg-gradient-to-r from-indigo-600 to-blue-500 rounded-2xl p-8 text-white shadow-xl">
-                <div class="flex items-center gap-4">
-                    <span class="text-4xl">🌟</span>
-                    <div>
-                        <h2 class="text-2xl font-bold">尊榮 VIP 專區</h2>
-                        <p class="opacity-90">您可以優先查看今年度「陳年原酒」的庫存分析與預售計畫。</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section>
-            <h3 class="text-xl font-bold mb-4 text-slate-700 italic">My Collection / 我的窖藏</h3>
-            <div id="myAssets" class="grid md:grid-cols-3 gap-6 text-center text-slate-400 py-10 border-2 border-dashed rounded-2xl">
-                尚未連接錢包或目前無窖藏資產
-            </div>
-        </section>
-    </main>
+    </div>
 
     <script>
         // --- 設定區 ---
-        const CONTRACT_ADDRESS = "0xf8e81D47203A594245E36C48e151709F0C19fBe8"; 
+        const CONTRACT_ADDRESS = "0x45753cDC8e467031339F5B244FbE1f0C21A101d9";
+        
+        // 🚨 重要：這裡必須與你智能合約中的 function 名稱完全一致
+        // 假設你的合約中領紅包的 function 叫 claim
         const ABI = [
-            "function owner() view returns (address)",
-            "function isVIP(address) view returns (bool)",
-            "function mintLiquorToken(address to, uint16 _year, uint8 _pct, string memory _batch) public",
-            "function setVIPStatus(address _user, bool _status) public",
-            "function balanceOf(address owner) view returns (uint256)"
+            "function claim() public",
+            "function getRemainingAmount() public view returns (uint256)"
         ];
 
         let provider, signer, contract;
 
-        // --- 連接邏輯 ---
+        // UI 元件
+        const connectBtn = document.getElementById('connectBtn');
+        const claimBtn = document.getElementById('claimBtn');
+        const logBox = document.getElementById('logBox');
+        const statusEl = document.getElementById('status');
+        const accountEl = document.getElementById('account');
+        const balanceEl = document.getElementById('balance');
+
+        // 日誌函數
+        function addLog(msg) {
+            const time = new Date().toLocaleTimeString();
+            logBox.innerHTML += `<div class="mb-1 text-gray-500">[${time}]</div><div class="mb-2 text-green-400">${msg}</div>`;
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        // 1. 連接錢包邏輯
         async function connectWallet() {
             if (!window.ethereum) {
-                alert("請安裝 MetaMask 錢包！");
+                addLog("錯誤：找不到 MetaMask！請先安裝。");
                 return;
             }
+
             try {
-                // 1. 請求帳號
-                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                const address = accounts[0];
-                
-                // 2. 初始化 Ethers
+                addLog("正在請求錢包授權...");
+                // 初始化 ethers v6 BrowserProvider
                 provider = new ethers.BrowserProvider(window.ethereum);
+                
+                // 強制跳出 MetaMask 請求連線
+                const accounts = await provider.send("eth_requestAccounts", []);
                 signer = await provider.getSigner();
+                const address = await signer.getAddress();
+                
+                // 更新 UI
+                statusEl.innerText = "已連線";
+                statusEl.classList.replace('text-red-600', 'text-green-600');
+                accountEl.innerText = `${address.slice(0, 6)}...${address.slice(-4)}`;
+                
+                // 獲取餘額
+                const balance = await provider.getBalance(address);
+                balanceEl.innerText = `${parseFloat(ethers.formatEther(balance)).toFixed(4)} ETH`;
+                
+                addLog(`連線成功！地址: ${address}`);
+                
+                // 啟用搶紅包按鈕
+                connectBtn.classList.add('hidden');
+                claimBtn.disabled = false;
+
+                // 初始化合約物件
                 contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
 
-                // 3. UI 更新
-                document.getElementById('userAccount').innerText = address;
-                document.getElementById('connectBtn').innerText = "已連接";
-                document.getElementById('connectBtn').classList.replace('bg-amber-500', 'bg-green-500');
-
-                checkIdentity(address);
             } catch (error) {
-                console.error("連接失敗:", error);
-                alert("連接失敗，請查看主控台。");
+                console.error(error);
+                addLog(`連線失敗: ${error.message}`);
             }
         }
 
-        // --- 身份判斷 ---
-        async function checkIdentity(address) {
+        // 2. 搶紅包邏輯
+        async function handleClaim() {
+            if (!contract) return;
+
             try {
-                const ownerAddress = await contract.owner();
-                const vipStatus = await contract.isVIP(address);
-                
-                const badge = document.getElementById('roleBadge');
-                const adminSection = document.getElementById('adminPanel');
-                const vipSection = document.getElementById('vipPanel');
+                claimBtn.disabled = true;
+                claimBtn.innerText = "處理中...";
+                addLog("正在發起合約交易...");
 
-                // 隱藏所有特殊區塊
-                adminSection.classList.add('hidden');
-                vipSection.classList.add('hidden');
+                // 呼叫合約 claim 函式
+                const tx = await contract.claim();
+                addLog(`交易已提交！Hash: <a href="https://sepolia.etherscan.io/tx/${tx.hash}" target="_blank" class="underline">${tx.hash.slice(0,10)}...</a>`);
 
-                if (address.toLowerCase() === ownerAddress.toLowerCase()) {
-                    badge.innerText = "👑 最高管理者";
-                    badge.className = "px-4 py-1 rounded-full text-sm font-bold bg-red-500 text-white";
-                    adminSection.classList.remove('hidden');
-                } else if (vipStatus) {
-                    badge.innerText = "💎 VIP 會員";
-                    badge.className = "px-4 py-1 rounded-full text-sm font-bold bg-amber-400 text-indigo-900";
-                    vipSection.classList.remove('hidden');
+                addLog("等待區塊確認 (可能需要 15-30 秒)...");
+                const receipt = await tx.wait(); // 等待交易打包
+
+                if (receipt.status === 1) {
+                    addLog("✅ 恭喜！紅包已成功領取！");
+                    alert("🎉 領取成功！");
                 } else {
-                    badge.innerText = "👤 一般使用者";
-                    badge.className = "px-4 py-1 rounded-full text-sm font-bold bg-indigo-100 text-indigo-700";
+                    addLog("❌ 交易失敗，請檢查合約邏輯。");
                 }
-            } catch (err) {
-                console.error("身份驗證失敗", err);
+
+            } catch (error) {
+                console.error(error);
+                // 處理常見錯誤
+                if (error.code === 'ACTION_REJECTED') {
+                    addLog("使用者拒絕了交易簽名。");
+                } else {
+                    addLog(`錯誤：${error.reason || error.message}`);
+                }
+            } finally {
+                claimBtn.disabled = false;
+                claimBtn.innerText = "2. 立即搶紅包！";
             }
         }
 
-        // --- 管理者功能 ---
-        async function setVIP(status) {
-            const target = document.getElementById('vipAddress').value;
-            if(!target) return alert("請輸入地址");
-            try {
-                const tx = await contract.setVIPStatus(target, status);
-                await tx.wait();
-                alert("權限更新成功！");
-            } catch (err) { alert("操作失敗: " + err.reason); }
-        }
-
-        async function mintToken() {
-            const to = document.getElementById('mintTo').value;
-            const year = document.getElementById('mintYear').value;
-            try {
-                const tx = await contract.mintLiquorToken(to, year, 58, "BATCH-2024");
-                await tx.wait();
-                alert("鑄造成功！酒權已上鏈。");
-            } catch (err) { alert("鑄造失敗: " + err.reason); }
-        }
+        // 綁定事件
+        connectBtn.addEventListener('click', connectWallet);
+        claimBtn.addEventListener('click', handleClaim);
 
         // 監聽錢包切換
         if (window.ethereum) {
             window.ethereum.on('accountsChanged', () => window.location.reload());
             window.ethereum.on('chainChanged', () => window.location.reload());
         }
-
-        document.getElementById('connectBtn').addEventListener('click', connectWallet);
     </script>
 </body>
 </html>
